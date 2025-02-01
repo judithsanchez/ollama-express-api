@@ -19,7 +19,7 @@ docker compose up --build
 ```
 
 ````bash
-docker exec -it ollama-server ollama pull <model-name>```
+docker exec -it ollama-server ollama pull MODEL-NAME```
 
 
 ````
