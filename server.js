@@ -4,11 +4,10 @@ const {z} = require('zod');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const OLLAMA_URL = 'http://ollama:11434/api/generate'; // Use Docker service name
+const OLLAMA_URL = 'http://ollama:11434/api/generate';
 
 app.use(express.json());
 
-// 🛡️ Define Zod Schema for Expected API Response
 const OllamaResponseSchema = z.object({
 	model: z.string(),
 	created_at: z.string(),
@@ -23,18 +22,16 @@ const OllamaResponseSchema = z.object({
 	eval_count: z.number(),
 });
 
-// 🛡️ Define Zod Schema for Structured Output (Capital Response)
 const CapitalResponseSchema = z.object({
 	country: z.string(),
 	capital: z.string(),
 });
 
-// 🎯 Function to Format Ollama Response
 const formatOllamaResponse = data => ({
 	generated_text: {
 		model: data.model,
 		created_at: data.created_at,
-		output: data.response.trim(), // Ensure clean output
+		output: data.response.trim(),
 		status: {
 			is_done: data.done,
 			reason: data.done_reason,
@@ -60,37 +57,23 @@ app.get('/', (req, res) => {
 
 app.post('/ask', async (req, res) => {
 	try {
-		// ✅ Extract request parameters
-		const {prompt, model, stream} = req.body;
+		const {prompt, model, stream, temperature, format} = req.body;
 
-		// ✅ Define JSON schema for structured output
-		const formatSchema = {
-			type: 'object',
-			properties: {
-				country: {type: 'string'},
-				capital: {type: 'string'},
-			},
-			required: ['country', 'capital'],
-		};
-
-		// ✅ Prepare request payload
 		const requestPayload = {
 			model: model || 'llama3.2',
-			prompt: prompt || 'What is the capital of France?',
+			prompt: prompt || 'Ups! Something happended with the prompt!',
 			stream: stream || false,
-			format: formatSchema,
+			format: format,
+			temperature: temperature || 0,
 		};
 
-		// 🚀 Send request to Ollama
 		const response = await axios.post(OLLAMA_URL, requestPayload);
 
-		// 🛡️ Validate response format using Zod
 		const validatedResponse = OllamaResponseSchema.safeParse(response.data);
 		if (!validatedResponse.success) {
 			throw new Error('Invalid API response format from Ollama.');
 		}
 
-		// 🛡️ Validate structured output against CapitalResponseSchema
 		let structuredData;
 		try {
 			structuredData = CapitalResponseSchema.parse(
@@ -100,10 +83,9 @@ app.post('/ask', async (req, res) => {
 			throw new Error('Invalid structured output format received.');
 		}
 
-		// ✅ Return structured & validated response
 		res.json({
 			...formatOllamaResponse(validatedResponse.data),
-			parsed_data: structuredData, // Include validated structured data
+			parsed_data: structuredData,
 		});
 	} catch (error) {
 		console.error('❌ Error:', error.message);
